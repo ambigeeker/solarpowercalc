@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Solar PV, Battery & Generator Hybrid Sizer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <header class="app-header">
+        <div>
+            <h1>Industrial Solar PV, Battery & Gen Hybrid Sizer ☀️🔋</h1>
+            <p>Electrical load auditing, inverter surge sizing, battery autonomy math, and 5-year diesel ROI</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="window.print()">Export Engineering Audit (PDF) 📄</button>
+        </div>
+    </header>
+
+    <!-- Top KPI Summary Cards -->
+    <section class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-label">Daily Energy Demand</span>
+            <span class="kpi-value" id="kpi_daily_kwh">0.0 <small>kWh/d</small></span>
+            <span class="kpi-sub" id="kpi_peak_load">Peak: 0.0 kW | Surge: 0.0 kW</span>
+        </div>
+        <div class="kpi-card highlight">
+            <span class="kpi-label">Recommended Inverter</span>
+            <span class="kpi-value" id="kpi_inverter_kva">0.0 <small>kVA</small></span>
+            <span class="kpi-sub" id="kpi_inverter_spec">PF 0.8 | 25% Safety Margin</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Battery Storage Bank</span>
+            <span class="kpi-value" id="kpi_battery_kwh">0.0 <small>kWh</small></span>
+            <span class="kpi-sub" id="kpi_battery_ah">0 Ah @ 48V</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Solar PV Array</span>
+            <span class="kpi-value" id="kpi_pv_kwp">0.0 <small>kWp</small></span>
+            <span class="kpi-sub" id="kpi_pv_panels">0 Panels</span>
+        </div>
+        <div class="kpi-card roi-card">
+            <span class="kpi-label">Generator Payback & ROI</span>
+            <span class="kpi-value" id="kpi_payback">0.0 <small>Months</small></span>
+            <span class="kpi-sub" id="kpi_five_yr_savings">5-Yr Net Savings: 0</span>
+        </div>
+    </section>
+
+    <main class="main-grid">
+        <!-- Left Column: Electrical Load Schedule -->
+        <section class="card">
+            <div class="card-header">
+                <h2>1. Workshop & Facility Electrical Load Schedule</h2>
+            </div>
+
+            <form id="add_load_form" class="add-load-bar">
+                <input type="text" id="load_name" placeholder="Equipment (e.g., Kiln Blower)" required>
+                <input type="number" id="load_watts" placeholder="Watts (W)" min="1" required>
+                <input type="number" id="load_qty" placeholder="Qty" min="1" value="1" required>
+                <input type="number" id="load_hours" placeholder="Hrs/Day" step="0.5" min="0.5" max="24" value="6" required>
+                <select id="load_surge" title="Motor Starting Surge Multiplier">
+                    <option value="1.0">1.0x (Resistive/LED/Electronics)</option>
+                    <option value="2.0">2.0x (Inverter AC / Small Fan)</option>
+                    <option value="3.0" selected>3.0x (Inductive Motor/Pump/Compressor)</option>
+                </select>
+                <button type="submit" class="btn btn-primary">+ Add</button>
+            </form>
+
+            <div class="table-wrapper">
+                <table class="load-table">
+                    <thead>
+                        <tr>
+                            <th>Appliance / Machine</th>
+                            <th>Rating (W)</th>
+                            <th>Qty</th>
+                            <th>Total W</th>
+                            <th>Surge W</th>
+                            <th>Hrs/Day</th>
+                            <th>Daily Wh</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="load_tbody">
+                        <!-- Populated by app.js -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Right Column: System Engineering & Economics Parameters -->
+        <section class="card">
+            <h2>2. Power System & Hybrid Economics Config</h2>
+            <form id="system_config_form">
+                <div class="section-tag">Battery & Inverter Architecture</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sys_voltage">DC Bus Voltage (V)</label>
+                        <select id="sys_voltage">
+                            <option value="12">12V DC (Small Systems)</option>
+                            <option value="24">24V DC (Medium Systems)</option>
+                            <option value="48" selected>48V DC (Industrial Standard)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="batt_dod">Battery Chemistry (Max DoD)</label>
+                        <select id="batt_dod">
+                            <option value="0.85" selected>Lithium LiFePO4 (85% DoD)</option>
+                            <option value="0.50">Tubular Lead-Acid / Gel (50% DoD)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="autonomy_days">Autonomy Backup (Days)</label>
+                        <input type="number" id="autonomy_days" step="0.25" min="0.25" value="1.0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="power_factor">Inverter Power Factor ($\cos\phi$)</label>
+                        <input type="number" id="power_factor" step="0.05" min="0.6" max="1.0" value="0.8" required>
+                    </div>
+                </div>
+
+                <div class="section-tag">Solar PV Array Parameters</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="peak_sun_hours">Peak Sun Hours (PSH, hrs/d)</label>
+                        <input type="number" id="peak_sun_hours" step="0.1" min="2.0" max="8.0" value="4.8" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="panel_wattage">Single PV Module Rating (W)</label>
+                        <select id="panel_wattage">
+                            <option value="400">400 W Monocrystalline</option>
+                            <option value="450">450 W Monocrystalline</option>
+                            <option value="550" selected>550 W Half-Cut Mono</option>
+                            <option value="600">600 W Bifacial Industrial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-tag">Generator Baseline vs. Solar CAPEX</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="solar_capex">Est. Solar Turnkey CAPEX (Cost)</label>
+                        <input type="number" id="solar_capex" step="1000" min="0" value="4500000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fuel_price">Fuel Cost per Liter (Cost/L)</label>
+                        <input type="number" id="fuel_price" step="10" min="0" value="1250" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gen_lph">Gen Fuel Burn Rate (Liters/hr)</label>
+                        <input type="number" id="gen_lph" step="0.1" min="0.2" value="2.2" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="gen_hours">Daily Gen Run Time (Hrs/day)</label>
+                        <input type="number" id="gen_hours" step="0.5" min="1" max="24" value="8" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gen_maint">Monthly Gen Servicing Cost</label>
+                        <input type="number" id="gen_maint" step="500" min="0" value="35000" required>
+                    </div>
+                    <div class="form-group align-end">
+                        <button type="submit" class="btn btn-primary full-width">Recalculate Engineering Model</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Bottom Chart: 5-Year Cumulative Cashflow Crossover -->
+        <section class="card chart-card">
+            <h2>5-Year Cumulative Energy Expenditure: Generator OPEX vs. Solar Hybrid CAPEX</h2>
+            <div class="chart-wrapper">
+                <canvas id="roiChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
